@@ -1,0 +1,1125 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <script>
+    // Применяем тему ДО рендера страницы для избежания мерцания
+    (function() {
+        var theme = localStorage.getItem('theme') || 'auto';
+        var isDark = theme === 'dark' || (theme === 'auto' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+        if (isDark) document.documentElement.classList.add('dark-theme');
+    })();
+    </script>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon-180x180.png" />
+    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
+    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
+    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="theme-color" content="#E5E7EB" id="themeColor">
+    <meta name="description" content="<%= metaDescription %>" id="metaDesc">
+    <title id="pageTitle"><%= metaTitle %></title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <script type="module" defer>
+    import { polyfillCountryFlagEmojis } from "https://cdn.skypack.dev/country-flag-emoji-polyfill";
+    polyfillCountryFlagEmojis();
+    </script>
+    <script src="https://cdn.jsdelivr.net/npm/qrcode-generator@1.4.4/qrcode.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/jsencrypt@3.3.2/bin/jsencrypt.min.js"></script>
+    <style>
+:root {
+    /* Точные цвета из палитры */
+    --primary-color: #6366F1;
+    --primary-hover: #4F46E5;
+    --primary-gradient: linear-gradient(135deg, #6366F1 0%, #818CF8 100%);
+    --success: #22C55E;
+    --warning: #F59E0B;
+    --error: #EF4444;
+    
+    /* Светлая тема */
+    --bg-color: #E5E7EB;
+    --surface-color: #F3F4F6;
+    --surface-glass: rgba(243, 244, 246, 0.7);
+    --border: rgba(17, 24, 39, 0.08);
+    --text-primary: #111827;
+    --text-secondary: #4B5563;
+    --text-muted: #9CA3AF;
+    
+    /* Тени и настройки стекла */
+    --shadow: 0 4px 15px rgba(0, 0, 0, 0.03);
+    --shadow-lg: 0 10px 30px rgba(0, 0, 0, 0.08);
+    --radius: 20px;
+    --glass-blur: blur(16px);
+}
+
+.dark-theme {
+    /* Тёмная тема */
+    --bg-color: #030712;
+    --surface-color: #111827;
+    --surface-glass: rgba(17, 24, 39, 0.75);
+    --border: rgba(249, 250, 251, 0.06);
+    --text-primary: #F9FAFB;
+    --text-secondary: #9CA3AF;
+    --text-muted: #4B5563;
+    
+    --shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+    --shadow-lg: 0 15px 40px rgba(0, 0, 0, 0.6);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+    font-family: 'Outfit', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    color: var(--text-primary);
+    line-height: 1.6;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    position: relative;
+    overflow-x: hidden;
+    background-color: var(--bg-color);
+    transition: background-color 0.4s ease, color 0.4s ease;
+}
+
+/* Строгий статичный градиент для глубины (без овалов) */
+body::before {
+    content: ''; position: fixed; top: 0; left: 0; right: 0; bottom: 0;
+    background: radial-gradient(circle at 15% 0%, rgba(99, 102, 241, 0.04), transparent 40%),
+                radial-gradient(circle at 85% 100%, rgba(99, 102, 241, 0.04), transparent 40%);
+    z-index: -2; pointer-events: none;
+}
+
+/* --- ИНТРО АНИМАЦИЯ --- */
+.intro-overlay {
+    position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+    background-color: #030712; /* Всегда темный при загрузке */
+    z-index: 10000;
+    display: flex; justify-content: center; align-items: center;
+    animation: fadeOutIntro 0.8s 2s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+    pointer-events: none;
+}
+.intro-logo {
+    color: #F9FAFB; font-size: 36px; font-weight: 700; letter-spacing: 4px;
+    opacity: 0;
+    animation: glowText 2s ease-in-out forwards;
+}
+.intro-logo span {
+    background: var(--primary-gradient);
+    -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+}
+@keyframes glowText {
+    0% { opacity: 0; transform: scale(0.9); filter: blur(10px); }
+    40% { opacity: 1; transform: scale(1.05); filter: blur(0); }
+    80% { opacity: 1; transform: scale(1); filter: blur(0); }
+    100% { opacity: 0; transform: scale(1.1); filter: blur(5px); }
+}
+@keyframes fadeOutIntro {
+    to { opacity: 0; visibility: hidden; }
+}
+
+/* --- ЭФФЕКТЫ ФОНА --- */
+.fx-container {
+    position: fixed; top: 0; left: 0; width: 100vw; height: 100vh;
+    z-index: -1; pointer-events: none; overflow: hidden;
+}
+
+/* 1. Сакура */
+.fx-sakura {
+    position: absolute;
+    background: linear-gradient(135deg, #ffb7c5 0%, #ff9eaf 100%);
+    border-radius: 15px 0px 15px 0px; /* Форма лепестка */
+    opacity: 0.8;
+    animation: fallSakura linear infinite;
+    box-shadow: 0 2px 5px rgba(255, 183, 197, 0.3);
+}
+@keyframes fallSakura {
+    0% { transform: translate(0, -10vh) rotate(0deg); opacity: 0; }
+    10% { opacity: 1; }
+    90% { opacity: 1; }
+    100% { transform: translate(var(--drift), 110vh) rotate(360deg); opacity: 0; }
+}
+
+/* 2. Северное сияние (Aurora) */
+.fx-aurora {
+    position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+    background: linear-gradient(60deg, rgba(99, 102, 241, 0.15), rgba(34, 197, 94, 0.1), rgba(236, 72, 153, 0.15), rgba(99, 102, 241, 0.15));
+    background-size: 300% 300%;
+    filter: blur(60px);
+    animation: auroraFlow 15s ease infinite;
+}
+.dark-theme .fx-aurora { background: linear-gradient(60deg, rgba(99, 102, 241, 0.25), rgba(34, 197, 94, 0.15), rgba(236, 72, 153, 0.25), rgba(99, 102, 241, 0.25)); }
+@keyframes auroraFlow {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+
+/* 3. Кинематографичное Боке */
+.fx-bokeh {
+    position: absolute; border-radius: 50%; /* Идеальные круги */
+    background: rgba(99, 102, 241, 0.2);
+    filter: blur(25px);
+    animation: floatBokeh linear infinite;
+}
+@keyframes floatBokeh {
+    0% { transform: translateY(110vh) scale(0.8); opacity: 0; }
+    20% { opacity: 0.6; }
+    80% { opacity: 0.6; }
+    100% { transform: translateY(-20vh) scale(1.2); opacity: 0; }
+}
+
+/* --- Анимации появления карточек (Fade-Up) --- */
+@keyframes slideUpFade {
+    from { opacity: 0; transform: translateY(30px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+.header { animation: slideUpFade 0.6s 2s cubic-bezier(0.16, 1, 0.3, 1) both; }
+#mainContent .card { animation: slideUpFade 0.6s cubic-bezier(0.16, 1, 0.3, 1) both; animation-delay: 2.1s; }
+#mainContent .card:nth-child(2) { animation-delay: 2.2s; }
+#mainContent .card:nth-child(3) { animation-delay: 2.3s; }
+#mainContent .card:nth-child(4) { animation-delay: 2.4s; }
+
+/* Контейнер и Шапка */
+.container { max-width: 1200px; width: 100%; margin: 0 auto; padding: 20px; flex: 1; box-sizing: border-box; z-index: 1; position: relative;}
+.header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 30px; flex-wrap: wrap; gap: 20px; padding-top: 10px; }
+.logo { font-size: 26px; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; letter-spacing: -0.5px; }
+.brand-logo { height: 32px; width: auto; margin-right: 12px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.1); }
+.controls { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; }
+
+/* Кнопки */
+.btn {
+    padding: 10px 20px; border: 1px solid var(--border); border-radius: 12px;
+    background: var(--surface-glass); color: var(--text-primary); cursor: pointer;
+    transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1); font-size: 14px; font-weight: 500;
+    display: inline-flex; align-items: center; gap: 8px; white-space: nowrap; backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+}
+.btn:hover { background: rgba(128,128,128,0.1); border-color: var(--primary-color); transform: translateY(-1px); }
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--primary-gradient); color: white; border: none; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
+.btn-primary:hover { background: var(--primary-hover); color: white; box-shadow: 0 6px 20px rgba(99, 102, 241, 0.4); border-color: transparent; }
+.btn-sm { padding: 6px 12px; font-size: 13px; }
+
+/* Квадратные кнопки-иконки (без овалов) */
+.btn-icon { padding: 10px; min-width: 42px; justify-content: center; border-radius: 12px; }
+
+/* Glassmorphism Карточки */
+.card {
+    background: var(--surface-glass); backdrop-filter: var(--glass-blur); -webkit-backdrop-filter: var(--glass-blur);
+    border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    overflow: hidden; margin-bottom: 24px; width: 100%; box-sizing: border-box; transition: transform 0.3s ease, box-shadow 0.3s ease;
+}
+.card:hover { transform: translateY(-2px); box-shadow: var(--shadow-lg); }
+.card-header { padding: 20px 24px; border-bottom: 1px solid var(--border); font-weight: 600; font-size: 18px; display: flex; justify-content: space-between; align-items: center; }
+.card-header.clickable { cursor: pointer; transition: background 0.2s ease; }
+.card-header.clickable:hover { background: rgba(128,128,128,0.05); }
+.card-content { padding: 24px; width: 100%; box-sizing: border-box; }
+
+/* Статусы и Инфо */
+.user-info .info-row, .user-info-expanded .info-row { display: flex; justify-content: space-between; align-items: center; padding: 14px 0; border-bottom: 1px solid var(--border); }
+.info-row:last-child { border-bottom: none; }
+.info-label { color: var(--text-secondary); font-weight: 500; }
+.info-value { color: var(--text-primary); font-weight: 600; text-align: right; word-break: break-word; }
+
+/* Коллапс инфо */
+.user-info-collapsed { display: flex; align-items: center; gap: 16px; padding: 16px 20px; cursor: pointer; transition: all 0.2s ease; }
+.user-info-collapsed:hover { background: rgba(128,128,128,0.05); }
+.user-info-collapsed .status-icon { width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; box-shadow: var(--shadow); }
+.user-info-collapsed .status-icon.active { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
+.user-info-collapsed .status-icon.inactive { background: rgba(239, 68, 68, 0.15); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.3); }
+.user-info-collapsed .user-summary { flex: 1; }
+.user-info-collapsed .user-summary-name { font-weight: 600; font-size: 18px; }
+.user-info-collapsed .user-summary-expire { color: var(--text-secondary); font-size: 14px; }
+.user-info-collapsed .expand-icon { color: var(--text-muted); transition: transform 0.2s ease; }
+.user-info-collapsed.expanded .expand-icon { transform: rotate(180deg); }
+.user-info-collapsed-details { display: none; padding: 0 20px 20px; }
+.user-info-collapsed-details.open { display: block; animation: slideUpFade 0.3s ease; }
+
+.stats-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 16px; }
+.stat-card { background: rgba(128,128,128,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 16px; transition: background 0.3s; }
+.stat-card:hover { background: rgba(99, 102, 241, 0.05); }
+.stat-card-label { color: var(--text-secondary); font-size: 13px; margin-bottom: 6px; display: flex; align-items: center; gap: 6px; font-weight: 500;}
+.stat-card-value { font-weight: 700; font-size: 18px; }
+
+.badge { padding: 6px 12px; border-radius: 8px; font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.5px; }
+.badge-active { background: rgba(34, 197, 94, 0.15); color: var(--success); border: 1px solid rgba(34, 197, 94, 0.3); }
+.badge-disabled, .badge-limited, .badge-expired { background: rgba(239, 68, 68, 0.15); color: var(--error); border: 1px solid rgba(239, 68, 68, 0.3); }
+
+/* Ссылки */
+.links-section { margin-bottom: 0; }
+.links-section .card-content { display: none; }
+.links-section.open .card-content { display: block; animation: slideUpFade 0.3s ease; }
+.expand-icon { transition: transform 0.3s ease; }
+.links-section.open .expand-icon { transform: rotate(180deg); }
+
+.link-item { display: flex; justify-content: space-between; align-items: center; padding: 16px; border: 1px solid var(--border); border-radius: 16px; margin-bottom: 12px; background: rgba(128,128,128,0.02); transition: all 0.2s ease; }
+.link-item:last-child { margin-bottom: 0; }
+.link-item:hover { border-color: var(--primary-color); background: rgba(99, 102, 241, 0.02); transform: translateX(4px); }
+.link-info { flex: 1; min-width: 0; }
+.link-name { font-weight: 600; word-break: break-word; display: flex; align-items: center; gap: 10px; font-family: "Twemoji Country Flags", inherit; }
+.link-actions { display: flex; gap: 8px; }
+
+/* Установка (Apps) */
+.apps-section { margin-bottom: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
+#appsContainer { width: 100%; min-width: 0; box-sizing: border-box; }
+.platform-tabs { display: flex; gap: 10px; margin-bottom: 24px; background: rgba(128,128,128,0.05); padding: 6px; border-radius: 16px; flex-wrap: nowrap; overflow-x: auto; border: 1px solid var(--border); }
+.platform-tab { flex: 1 0 auto; padding: 10px 20px; text-align: center; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; font-weight: 500; display: flex; align-items: center; justify-content: center; gap: 8px; min-width: 80px; }
+.platform-tab:hover { background: rgba(128,128,128,0.1); }
+.platform-tab.active { background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); border-color: transparent; }
+.platform-tab svg { color: inherit; }
+#platform-selector-btn { display: none; }
+
+.apps-container { display: flex; flex-direction: column; gap: 20px; width: 100%; min-width: 0; box-sizing: border-box; }
+.apps-grid, .featured-apps-row { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 16px; width: 100%; min-width: 0; box-sizing: border-box; }
+
+.app-card { background: rgba(128,128,128,0.03); border: 1px solid var(--border); border-radius: 16px; padding: 24px; position: relative; transition: all 0.3s ease; cursor: pointer; width: 100%; min-width: 0; box-sizing: border-box; }
+.app-card:hover { border-color: var(--primary-color); box-shadow: 0 10px 30px rgba(99, 102, 241, 0.1); transform: translateY(-4px); }
+.app-card.featured { border-color: var(--primary-color); background: linear-gradient(135deg, rgba(99, 102, 241, 0.05) 0%, transparent 100%); }
+.app-header { display: flex; align-items: center; gap: 16px; margin-bottom: 20px; }
+.app-icon { width: 48px; height: 48px; border-radius: 14px; background: var(--primary-gradient); display: flex; align-items: center; justify-content: center; color: white; box-shadow: 0 4px 10px rgba(99, 102, 241, 0.2); flex-shrink: 0; }
+.app-icon svg { width: 24px; height: 24px; }
+.app-name { font-weight: 600; font-size: 18px; }
+.featured-badge { position: absolute; top: -1px; right: -1px; background: var(--primary-gradient); color: white; padding: 4px 12px; border-radius: 0 16px 0 16px; font-size: 10px; font-weight: 600; text-transform: uppercase; }
+
+/* App Tabs */
+.app-tabs { display: flex; gap: 10px; margin-bottom: 24px; flex-wrap: wrap; width: 100%; min-width: 0; box-sizing: border-box; }
+.app-tab { flex: 1 1 auto; min-width: 140px; border: 1px solid var(--border); border-radius: 14px; background: rgba(128,128,128,0.03); cursor: pointer; transition: all 0.3s ease; font-weight: 500; display: flex; align-items: stretch; position: relative; overflow: hidden; box-sizing: border-box; }
+.app-tab:hover { border-color: var(--primary-color); }
+.app-tab.active { border-color: transparent; background: var(--primary-gradient); color: white; box-shadow: 0 4px 15px rgba(99, 102, 241, 0.3); }
+.app-tab .star-icon { color: var(--warning); position: absolute; top: 6px; left: 6px; width: 14px; height: 14px; z-index: 1; }
+.app-tab.active .star-icon { color: white; }
+.app-tab .app-tab-icon { width: 48px; background: rgba(0,0,0,0.1); color: inherit; display: flex; align-items: center; justify-content: center; flex-shrink: 0; order: 2; }
+.app-tab .app-tab-icon svg { width: 28px; height: 28px; }
+.app-tab .app-tab-name { order: 1; padding: 14px 16px; display: flex; align-items: center; flex: 1; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+/* Гайды */
+.guides-cards, .guides-accordion, .guides-expanded, .guides-minimal, .guides-timeline { width: 100%; min-width: 0; box-sizing: border-box; }
+.guide-card, .accordion-item, .expanded-item { background: rgba(128,128,128,0.02); border: 1px solid var(--border); border-radius: 16px; padding: 20px; margin-bottom: 16px; overflow: hidden; word-break: break-word; width: 100%; min-width: 0; box-sizing: border-box; }
+.guide-card-header, .expanded-header { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
+.guide-card-icon, .accordion-icon, .expanded-icon { width: 44px; height: 44px; border-radius: 12px; display: flex; align-items: center; justify-content: center; flex-shrink: 0; color: white; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+.guide-card-icon svg, .expanded-icon svg { width: 22px; height: 22px; }
+.accordion-icon svg { width: 20px; height: 20px; }
+.guide-card-title, .accordion-title, .expanded-title { font-weight: 600; font-size: 16px; flex: 1; }
+.guide-card-description, .accordion-description, .expanded-description, .step-description { color: var(--text-secondary); margin-bottom: 16px; word-break: break-word; }
+.guide-card-buttons, .accordion-buttons, .expanded-buttons, .step-buttons { display: flex; flex-wrap: wrap; gap: 8px; }
+
+.accordion-header { display: flex; align-items: center; gap: 12px; cursor: pointer; padding: 4px 0; }
+.accordion-arrow { color: var(--text-muted); transition: transform 0.3s ease; }
+.accordion-item.open .accordion-arrow { transform: rotate(180deg); }
+.accordion-content { display: none; padding-top: 20px; border-top: 1px solid var(--border); margin-top: 16px; animation: slideUpFade 0.3s ease; }
+.accordion-item.open .accordion-content { display: block; }
+
+.guides-minimal .step { margin-bottom: 24px; width: 100%; min-width: 0; box-sizing: border-box; }
+.guides-minimal .step:last-child { margin-bottom: 0; }
+.guides-minimal .step-title { font-weight: 600; margin-bottom: 12px; display: flex; align-items: center; gap: 12px; }
+.step-number { background: var(--primary-color); color: white; width: 28px; height: 28px; border-radius: 8px; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: bold; flex-shrink: 0; }
+
+/* Timeline */
+.timeline-container { position: relative; width: 100%; min-width: 0; box-sizing: border-box; }
+.timeline-step { position: relative; margin-bottom: 24px; display: none; width: 100%; min-width: 0; box-sizing: border-box; }
+.timeline-step.active { display: block; animation: slideUpFade 0.3s ease; }
+.timeline-step-content { overflow: hidden; word-break: break-word; width: 100%; min-width: 0; box-sizing: border-box; }
+.timeline-nav { display: flex; justify-content: space-between; gap: 16px; margin-top: 0; }
+.timeline-nav .btn { flex: 1; justify-content: center; gap: 8px; border-radius: 12px; }
+.timeline-dots { display: flex; justify-content: center; gap: 12px; margin-bottom: 24px; padding: 8px 0; }
+.timeline-dot { width: 36px; height: 36px; border-radius: 12px; cursor: pointer; transition: all 0.3s ease; display: flex; align-items: center; justify-content: center; color: white; flex-shrink: 0; box-shadow: 0 2px 8px rgba(0,0,0,0.2); }
+.timeline-dot svg { width: 18px; height: 18px; }
+.timeline-dot.active { transform: scale(1.1); box-shadow: 0 4px 12px var(--primary-color); }
+.timeline-dot.completed { opacity: 0.5; }
+
+/* Spoiler */
+.other-apps-spoiler { width: 100%; }
+.spoiler-header { background: rgba(128,128,128,0.02); border: 1px solid var(--border); border-radius: 16px; padding: 16px 20px; cursor: pointer; display: flex; align-items: center; justify-content: space-between; transition: all 0.2s ease; font-weight: 500; width: 100%; }
+.spoiler-header:hover { border-color: var(--primary-color); }
+.spoiler-content { display: none; margin-top: 16px; animation: slideUpFade 0.3s ease; }
+.spoiler-content.open { display: block; }
+.spoiler-arrow { transition: transform 0.3s ease; flex-shrink: 0; }
+.spoiler-arrow.open { transform: rotate(180deg); }
+
+/* Модалки */
+.modal { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0, 0, 0, 0.4); backdrop-filter: blur(10px); -webkit-backdrop-filter: blur(10px); z-index: 1000; align-items: center; justify-content: center; padding: 20px; opacity: 0; transition: opacity 0.3s ease; }
+.modal.active { display: flex; opacity: 1; }
+.modal-content { background: var(--bg-color); border: 1px solid var(--border); border-radius: 24px; max-width: 600px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: var(--shadow-lg); transform: scale(0.95); transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1); }
+.modal.active .modal-content { transform: scale(1); }
+.modal-header { padding: 24px; border-bottom: 1px solid var(--border); display: flex; justify-content: space-between; align-items: center; }
+.modal-title { font-size: 20px; font-weight: 600; display: flex; align-items: center; gap: 12px; font-family: "Twemoji Country Flags", inherit; }
+.modal-close { background: none; border: none; font-size: 28px; color: var(--text-secondary); cursor: pointer; transition: color 0.2s; line-height: 1; display: flex; align-items: center; justify-content: center; padding: 0; width: 32px; height: 32px; border-radius: 8px; }
+.modal-close:hover { background: rgba(128,128,128,0.1); color: var(--error); }
+.modal-body { padding: 24px; }
+
+/* Settings Modal */
+.settings-section { margin-bottom: 24px; }
+.settings-section:last-child { margin-bottom: 0; }
+.settings-label { font-weight: 600; margin-bottom: 12px; display: block; color: var(--text-secondary); }
+.settings-buttons { display: flex; flex-wrap: wrap; gap: 10px; }
+.settings-buttons .btn { flex: 1 1 auto; min-width: 0; justify-content: center; }
+.lang-emoji { font-family: "Twemoji Country Flags", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji", sans-serif; font-size: 1.2em; }
+
+/* QR Modal */
+.qr-container { display: flex; flex-direction: column; align-items: center; padding: 10px; }
+.qr-container > div { width: 256px; height: 256px; display: flex; align-items: center; justify-content: center; background: #fff; padding: 16px; border-radius: 20px; box-shadow: var(--shadow); }
+.qr-container img { width: 100%; height: 100%; border-radius: 8px; }
+.qr-hint { margin-top: 20px; color: var(--text-secondary); text-align: center; }
+
+/* Platform Modal */
+.platform-modal-list { display: flex; flex-direction: column; gap: 10px; }
+.platform-modal-item { display: flex; align-items: center; gap: 12px; padding: 16px; border: 1px solid var(--border); border-radius: 16px; cursor: pointer; transition: all 0.2s ease; background: rgba(128,128,128,0.02); }
+.platform-modal-item:hover { background: rgba(99, 102, 241, 0.05); border-color: var(--primary-color); transform: translateX(4px); }
+
+/* Footer */
+.footer { text-align: center; padding: 24px; color: var(--text-muted); font-size: 14px; border-top: 1px solid var(--border); margin-top: auto; z-index: 1; }
+
+/* Toast */
+.toast { position: fixed; bottom: 30px; left: 50%; transform: translateX(-50%) translateY(100px); background: var(--text-primary); color: var(--bg-color); padding: 14px 28px; border-radius: 30px; font-weight: 500; opacity: 0; transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1); z-index: 2000; box-shadow: var(--shadow-lg); }
+.toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+
+/* SVG Icon sizing */
+.icon-svg { width: 20px; height: 20px; display: inline-block; vertical-align: middle; }
+.icon-svg-sm { width: 16px; height: 16px; }
+.icon-svg-lg { width: 24px; height: 24px; }
+.w-4 { width: 16px; } .h-4 { height: 16px; }
+.w-5 { width: 20px; } .h-5 { height: 20px; }
+.w-6 { width: 24px; } .h-6 { height: 24px; }
+
+/* Responsive */
+@media (max-width: 768px) {
+    .container { padding: 16px; width: 100%; box-sizing: border-box; }
+    .header { gap: 12px; margin-bottom: 20px; }
+    .logo { font-size: 22px; flex: 1; }
+    .controls { gap: 8px; }
+    .btn-text { display: none; }
+    .stats-grid { grid-template-columns: 1fr; }
+    .featured-apps-row { grid-template-columns: 1fr; }
+    .apps-grid { grid-template-columns: 1fr; }
+    .app-tab { flex: 1 0 calc(50% - 10px); min-width: fit-content; }
+    .app-tab .app-tab-name { overflow: visible; text-overflow: clip; }
+}
+
+@media (max-width: 1024px) {
+    .platform-tabs { display: none; }
+    #platform-selector-btn { display: inline-flex !important; }
+}
+
+.logo:not(.loaded) { visibility: hidden; }
+.header-controls:not(.loaded) { visibility: hidden; }
+#mainContent { opacity: 0; }
+#mainContent.loaded { opacity: 1; }
+    </style>
+</head>
+<body>
+
+    <div class="intro-overlay">
+        <div class="intro-logo"><span>REVERCENT</span></div>
+    </div>
+
+    <div id="fxContainer" class="fx-container"></div>
+
+    <div class="container">
+        <header class="header animate-fade-up">
+            <div class="logo" id="brandLogo"></div>
+            <div class="controls header-controls" id="headerControls">
+                </div>
+        </header>
+        <main id="mainContent">
+            </main>
+    </div>
+
+    <footer class="footer" id="pageFooter"></footer>
+
+    <div class="modal" id="settingsModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="settingsTitle">Settings</div>
+                <button class="modal-close" onclick="closeModal('settingsModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-section">
+                    <label class="settings-label" id="themeLabel">Theme</label>
+                    <div class="settings-buttons" id="themeButtons">
+                        <button class="btn" id="themeLightBtn" onclick="setTheme('light')">☀️ <span class="theme-text">Light</span></button>
+                        <button class="btn" id="themeDarkBtn" onclick="setTheme('dark')">🌙 <span class="theme-text">Dark</span></button>
+                        <button class="btn" id="themeAutoBtn" onclick="setTheme('auto')">⚙️ <span class="theme-text">Auto</span></button>
+                    </div>
+                </div>
+                
+                <div class="settings-section">
+                    <label class="settings-label" id="fxLabel">Visual Effects</label>
+                    <div class="settings-buttons" id="fxButtons">
+                        <button class="btn" id="fxNoneBtn" onclick="setVisualFX('none')">🚫 <span class="fx-text">Off</span></button>
+                        <button class="btn" id="fxSakuraBtn" onclick="setVisualFX('sakura')">🌸 <span class="fx-text">Sakura</span></button>
+                        <button class="btn" id="fxAuroraBtn" onclick="setVisualFX('aurora')">🌌 <span class="fx-text">Aurora</span></button>
+                        <button class="btn" id="fxBokehBtn" onclick="setVisualFX('bokeh')">✨ <span class="fx-text">Bokeh</span></button>
+                    </div>
+                </div>
+
+                <div class="settings-section">
+                    <label class="settings-label" id="languageLabel">Language</label>
+                    <div class="settings-buttons" id="languageButtons"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="appModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="appModalTitle"></div>
+                <button class="modal-close" onclick="closeModal('appModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="appModalBody"></div>
+        </div>
+    </div>
+
+    <div class="modal" id="qrModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="qrModalTitle">QR Code</div>
+                <button class="modal-close" onclick="closeModal('qrModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="qr-container">
+                    <div id="qrCode"></div>
+                    <p class="qr-hint" id="qrHint">Scan with your phone</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="subscriptionModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="subscriptionModalTitle">Subscription</div>
+                <button class="modal-close" onclick="closeModal('subscriptionModal')">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="qr-container">
+                    <div id="subscriptionQrCode"></div>
+                    <p class="qr-hint" id="subscriptionQrHint">Scan with your phone</p>
+                </div>
+                <div style="text-align: center; margin-top: 24px;">
+                    <button class="btn btn-primary" onclick="copySubscriptionUrl()" id="copySubBtn" style="width: 100%; justify-content: center; padding: 12px;">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/>
+                        </svg>
+                        <span id="copySubBtnText">Copy</span>
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="modal" id="platformModal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <div class="modal-title" id="platformModalTitle">Select Platform</div>
+                <button class="modal-close" onclick="closeModal('platformModal')">&times;</button>
+            </div>
+            <div class="modal-body" id="platformModalBody"></div>
+        </div>
+    </div>
+
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // Global state
+        let panelData = null;
+        let appConfig = null;
+        let currentLanguage = 'en';
+        let currentPlatform = 'ios';
+        let currentApp = null;
+        let toastTimeout = null;
+        let validPlatforms = [];
+
+        // Hardcoded translations for custom texts
+        const customTranslations = {
+            daysLeft: { en: 'Days left', ru: 'Осталось дней', zh: '剩余天数', es: 'Días restantes' },
+            visualFX: { en: 'Visual Effects', ru: 'Визуальные эффекты', zh: '视觉效果', es: 'Efectos Visuales' },
+            fxNone: { en: 'Off', ru: 'Выкл', zh: '关', es: 'Apagado' },
+            fxSakura: { en: 'Sakura', ru: 'Сакура', zh: '樱花', es: 'Sakura' },
+            fxAurora: { en: 'Aurora', ru: 'Сияние', zh: '极光', es: 'Aurora' },
+            fxBokeh: { en: 'Bokeh', ru: 'Боке', zh: '光斑', es: 'Bokeh' }
+        };
+        
+        let timelineCurrentStep = 0;
+
+        // Language full names for display
+        const langFullNames = {
+            en: 'English', ru: 'Русский', zh: '中文', fa: 'فارسی', fr: 'Français',
+            de: 'Deutsch', es: 'Español', it: 'Italiano', pt: 'Português', ja: '日本語',
+            ko: '한국어', ar: 'العربية', tr: 'Türkçe', pl: 'Polski', uk: 'Українська',
+            nl: 'Nederlands', vi: 'Tiếng Việt', th: 'ไทย', id: 'Indonesia', ms: 'Melayu',
+            az: 'Azərbaycan', uz: 'Oʻzbek', hi: 'हिन्दी', be: 'Беларуская', tk: 'Türkmen'
+        };
+
+        // HAPP Encrypted Link Support - RSA Public Keys
+        const HAPP_PUBLIC_KEY_V3 = `-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEAlBetA0wjbaj+h7oJ/d/h
+pNrXvAcuhOdFGEFcfCxSWyLzWk4SAQ05gtaEGZyetTax2uqagi9HT6lapUSUe2S8
+nMLJf5K+LEs9TYrhhBdx/B0BGahA+lPJa7nUwp7WfUmSF4hir+xka5ApHjzkAQn6
+cdG6FKtSPgq1rYRPd1jRf2maEHwiP/e/jqdXLPP0SFBjWTMt/joUDgE7v/IGGB0L
+Q7mGPAlgmxwUHVqP4bJnZ//5sNLxWMjtYHOYjaV+lixNSfhFM3MdBndjpkmgSfmg
+D5uYQYDL29TDk6Eu+xetUEqry8ySPjUbNWdDXCglQWMxDGjaqYXMWgxBA1UKjUBW
+wbgr5yKTJ7mTqhlYEC9D5V/LOnKd6pTSvaMxkHXwk8hBWvUNWAxzAf5JZ7EVE3jt
+0j682+/hnmL/hymUE44yMG1gCcWvSpB3BTlKoMnl4yrTakmdkbASeFRkN3iMRewa
+IenvMhzJh1fq7xwX94otdd5eLB2vRFavrnhOcN2JJAkKTnx9dwQwFpGEkg+8U613
++Tfm/f82l56fFeoFN98dD2mUFLFZoeJ5CG81ZeXrH83niI0joX7rtoAZIPWzq3Y1
+Zb/Zq+kK2hSIhphY172Uvs8X2Qp2ac9UoTPM71tURsA9IvPNvUwSIo/aKlX5KE3I
+VE0tje7twWXL5Gb1sfcXRzsCAwEAAQ==
+-----END PUBLIC KEY-----`;
+
+        const HAPP_PUBLIC_KEY_V4 = `-----BEGIN PUBLIC KEY-----
+MIICIjANBgkqhkiG9w0BAQEFAAOCAg8AMIICCgKCAgEA3UZ0M3L4K+WjM3vkbQnz
+ozHg/cRbEXvQ6i4A8RVN4OM3rK9kU01FdjyoIgywve8OEKsFnVwERZAQZ1Trv60B
+hmaM76QQEE+EUlIOL9EpwKWGtTL5lYC1sT9XJMNP3/CI0gP5wwQI88cY/xedpOEB
+W72EmOOShHUm/b/3m+HPmqwc4ugKj5zWV5SyiT829aFA5DxSjmIIFBAms7DafmSq
+LFTYIQL5cShDY2u+/sqyAw9yZIOoqW2TFIgIHhLPWek/ocDU7zyOrlu1E0SmcQQb
+LFqHq02fsnH6IcqTv3N5Adb/CkZDDQ6HvQVBmqbKZKf7ZdXkqsc/Zw27xhG7OfXC
+tUmWsiL7zA+KoTd3avyOh93Q9ju4UQsHthL3Gs4vECYOCS9dsXXSHEY/1ngU/hjO
+WFF8QEE/rYV6nA4PTyUvo5RsctSQL/9DJX7XNh3zngvif8LsCN2MPvx6X+zLouBX
+zgBkQ9DFfZAGLWf9TR7KVjZC/3NsuUCDoAOcpmN8pENBbeB0puiKMMWSvll36+2M
+YR1Xs0MgT8Y9TwhE2+TnnTJOhzmHi/BxiUlY/w2E0s4ax9GHAmX0wyF4zeV7kDkc
+vHuEdc0d7vDmdw0oqCqWj0Xwq86HfORu6tm1A8uRATjb4SzjTKclKuoElVAVa5Jo
+oh/uZMozC65SmDw+N5p6Su8CAwEAAQ==
+-----END PUBLIC KEY-----`;
+
+        const HAPP_CRYPTO_V3 = { publicKey: HAPP_PUBLIC_KEY_V3, deepLink: 'happ://crypt3/' };
+        const HAPP_CRYPTO_V4 = { publicKey: HAPP_PUBLIC_KEY_V4, deepLink: 'happ://crypt4/' };
+
+        function encryptLink(link, publicKey) {
+            try {
+                const encrypt = new JSEncrypt();
+                encrypt.setPublicKey(publicKey);
+                return encrypt.encrypt(link) || null;
+            } catch (error) {
+                console.error('Encryption error:', error);
+                return null;
+            }
+        }
+
+        function generateHappCryptLink(subscriptionUrl, version) {
+            if (!subscriptionUrl) return '';
+            const cryptoConfig = version === 3 ? HAPP_CRYPTO_V3 : HAPP_CRYPTO_V4;
+            const encrypted = encryptLink(subscriptionUrl, cryptoConfig.publicKey);
+            return encrypted ? cryptoConfig.deepLink + encodeURIComponent(encrypted) : '';
+        }
+
+        // Initialize app
+        document.addEventListener('DOMContentLoaded', initializeApp);
+
+        function initializeApp() {
+            loadSettings();
+            loadAppConfig();
+            loadPanelData();
+            initVisualFX();
+        }
+
+        function loadSettings() {
+            const savedTheme = localStorage.getItem('theme') || 'auto';
+            applyTheme(savedTheme);
+            const savedLang = localStorage.getItem('lang') || getBrowserLanguage();
+            currentLanguage = savedLang;
+        }
+
+        function getBrowserLanguage() {
+            const lang = (navigator.language || navigator.userLanguage).slice(0, 2);
+            return appConfig?.locales?.includes(lang) ? lang : (appConfig?.locales?.[0] || 'en');
+        }
+
+        function loadAppConfig() {
+            fetch('/assets/.app-config-v2.json')
+                .then(response => {
+                    if (!response.ok) throw new Error(`Failed to load config: ${response.status}`);
+                    return response.json();
+                })
+                .then(data => {
+                    appConfig = data;
+
+                    if (appConfig.baseSettings) {
+                        if (appConfig.baseSettings.metaTitle) {
+                            document.getElementById('pageTitle').textContent = appConfig.baseSettings.metaTitle;
+                        }
+                        if (appConfig.baseSettings.metaDescription) {
+                            document.getElementById('metaDesc').setAttribute('content', appConfig.baseSettings.metaDescription);
+                            document.getElementById('pageFooter').textContent = appConfig.baseSettings.metaDescription;
+                        }
+                    }
+
+                    validPlatforms = Object.keys(appConfig.platforms || {}).filter(p => {
+                        const platform = appConfig.platforms[p];
+                        return platform && platform.apps && platform.apps.length > 0;
+                    });
+
+                    if (!localStorage.getItem('lang')) {
+                        currentLanguage = getBrowserLanguage();
+                    }
+
+                    setupLanguageButtons();
+                    updateBranding();
+                    renderHeaderControls();
+                    updateTexts();
+                })
+                .catch(error => console.error('Error loading app config:', error))
+                .finally(() => { if (panelData) renderContent(); });
+        }
+
+        function loadPanelData() {
+            const panelDataB64 = '<%= panelData %>';
+            try {
+                panelData = JSON.parse(atob(panelDataB64));
+            } catch (error) {
+                console.error('Error loading panel data:', error);
+                panelData = { response: { isFound: false } };
+            }
+            if (appConfig !== null) renderContent();
+        }
+
+        function t(key) {
+            const translation = appConfig?.baseTranslations?.[key];
+            if (translation) {
+                return translation[currentLanguage] || translation['en'] || key;
+            }
+            return key;
+        }
+        
+        function tCustom(key) {
+            const tr = customTranslations[key];
+            if (tr) return tr[currentLanguage] || tr['en'];
+            return key;
+        }
+
+        function getLocalizedText(textObj) {
+            if (!textObj) return '';
+            if (typeof textObj === 'string') return textObj;
+            return textObj[currentLanguage] || textObj['en'] || Object.values(textObj)[0] || '';
+        }
+
+        function getSvgIcon(iconKey, className = 'icon-svg') {
+            if (!iconKey || !appConfig?.svgLibrary) return '';
+            const svg = appConfig.svgLibrary[iconKey];
+            if (!svg) return '';
+            return svg.replace('<svg', `<svg class="${className}"`);
+        }
+
+        function getIconColor(colorValue) {
+            if (!colorValue) return 'var(--primary-color)';
+            if (colorValue.startsWith('#')) return colorValue;
+            return `var(--color-${colorValue}, var(--primary-color))`;
+        }
+
+        const hardcodedTranslations = {
+            recommended: { en: 'Recommended', ru: 'Рекомендуется', zh: '推荐', fa: 'پیشنهادی', fr: 'Recommandé', es: 'Recomendado', uk: 'Рекомендовано' },
+            install: { en: 'Install and Launch', ru: 'Установить и Запустить', zh: '安装并启动', fa: 'نصب و اجرا', fr: 'Installer et Lancer', es: 'Instalar e Iniciar', uk: 'Встановити та Запустити' },
+            support: { en: 'Support', ru: 'Поддержка', zh: '支持', fa: 'پشتیبانی', fr: 'Support', es: 'Soporte', uk: 'Підтримка' },
+            settings: { en: 'Settings', ru: 'Настройки', zh: '设置', fa: 'تنظیمات', fr: 'Paramètres', es: 'Ajustes', uk: 'Налаштування' },
+            getLink: { en: 'Get Link', ru: 'Получить ссылку', zh: '获取链接', fa: 'دریافت لینک', fr: 'Obtenir le lien', es: 'Obtener enlace', uk: 'Отримати посилання' },
+            selectPlatform: { en: 'Select platform', ru: 'Выбрать платформу', zh: '选择平台', fa: 'انتخاب پلتفرم', fr: 'Sélectionner la plateforme', es: 'Seleccionar plataforma', uk: 'Вибрати платформу' },
+            selectApp: { en: 'Select application', ru: 'Выбрать приложение', zh: '选择应用', fa: 'انتخاب برنامه', fr: 'Sélectionner l\'application', es: 'Seleccionar aplicación', uk: 'Вибрати додаток' },
+            theme: { en: 'Theme', ru: 'Тема', zh: '主题', fa: 'تم', fr: 'Thème', es: 'Tema', uk: 'Тема' },
+            language: { en: 'Language', ru: 'Язык', zh: '语言', fa: 'زبان', fr: 'Langue', es: 'Idioma', uk: 'Мова' },
+            themeLight: { en: 'Light', ru: 'Светлая', zh: '明亮', fa: 'روشن', fr: 'Claire', es: 'Clara', uk: 'Світла' },
+            themeDark: { en: 'Dark', ru: 'Тёмная', zh: '深色', fa: 'تیره', fr: 'Sombre', es: 'Oscura', uk: 'Темна' },
+            themeAuto: { en: 'Auto', ru: 'Авто', zh: '自动', fa: 'خودکار', fr: 'Auto', es: 'Auto', uk: 'Авто' }
+        };
+
+        const langEmojis = {
+            en: '🇬🇧', ru: '🇷🇺', zh: '🇨🇳', fa: '🇮🇷', fr: '🇫🇷', uz: '🇺🇿', hi: '🇮🇳', de: '🇩🇪', tr: '🇹🇷', az: '🇦🇿',
+            vi: '🇻🇳', es: '🇪🇸', ja: '🇯🇵', be: '🇧🇾', pt: '🇵🇹', uk: '🇺🇦', pl: '🇵🇱', id: '🇮🇩', tk: '🇹🇲', th: '🇹🇭'
+        };
+
+        function getHardcodedText(key) {
+            const texts = hardcodedTranslations[key];
+            if (!texts) return key;
+            return texts[currentLanguage] || texts['en'] || key;
+        }
+
+        function updateBranding() {
+            if (!appConfig?.brandingSettings) return;
+            const branding = appConfig.brandingSettings;
+            const logo = document.getElementById('brandLogo');
+            if (logo) {
+                logo.innerHTML = '';
+                if (branding.logoUrl) {
+                    const logoImg = document.createElement('img');
+                    logoImg.src = branding.logoUrl;
+                    logoImg.alt = branding.title || 'Logo';
+                    logoImg.className = 'brand-logo';
+                    logo.appendChild(logoImg);
+                }
+                const titleSpan = document.createElement('span');
+                titleSpan.textContent = branding.title || 'Subscription';
+                titleSpan.style.background = 'var(--primary-gradient)';
+                titleSpan.style.webkitBackgroundClip = 'text';
+                titleSpan.style.webkitTextFillColor = 'transparent';
+                logo.appendChild(titleSpan);
+                logo.classList.add('loaded');
+            }
+        }
+
+        function renderHeaderControls() {
+            const controls = document.getElementById('headerControls');
+            if (!controls) return;
+
+            const branding = appConfig?.brandingSettings;
+            let html = '';
+
+            if (branding?.supportUrl) {
+                const isTelegramUrl = branding.supportUrl.startsWith('https://t.me');
+                const supportIcon = isTelegramUrl
+                    ? `<svg class="w-5 h-5" fill="currentColor" viewBox="0 0 24 24"><path d="M11.944 0A12 12 0 0 0 0 12a12 12 0 0 0 12 12 12 12 0 0 0 12-12A12 12 0 0 0 12 0a12 12 0 0 0-.056 0zm4.962 7.224c.1-.002.321.023.465.14a.506.506 0 0 1 .171.325c.016.093.036.306.02.472-.18 1.898-.962 6.502-1.36 8.627-.168.9-.499 1.201-.82 1.23-.696.065-1.225-.46-1.9-.902-1.056-.693-1.653-1.124-2.678-1.8-1.185-.78-.417-1.21.258-1.91.177-.184 3.247-2.977 3.307-3.23.007-.032.014-.15-.056-.212s-.174-.041-.249-.024c-.106.024-1.793 1.14-5.061 3.345-.48.33-.913.49-1.302.48-.428-.008-1.252-.241-1.865-.44-.752-.245-1.349-.374-1.297-.789.027-.216.325-.437.893-.663 3.498-1.524 5.83-2.529 6.998-3.014 3.332-1.386 4.025-1.627 4.476-1.635z"/></svg>`
+                    : `<svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>`;
+                html += `<button class="btn btn-icon" onclick="openLink('${escapeForAttribute(branding.supportUrl)}')">${supportIcon}</button>`;
+            }
+
+            html += `<button class="btn btn-icon" onclick="openModal('settingsModal')">
+                <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z"/>
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z"/>
+                </svg>
+            </button>`;
+
+            if (appConfig?.baseSettings?.hideGetLinkButton !== true) {
+                html += `<button class="btn btn-primary btn-icon" onclick="showSubscriptionModal()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1"/>
+                    </svg>
+                    <span class="btn-text">${getHardcodedText('getLink')}</span>
+                </button>`;
+            }
+
+            controls.innerHTML = html;
+            controls.classList.add('loaded');
+        }
+
+        function setupLanguageButtons() {
+            const container = document.getElementById('languageButtons');
+            if (!container) return;
+            container.innerHTML = '';
+            const locales = appConfig?.locales || ['en'];
+            locales.forEach(langCode => {
+                const button = document.createElement('button');
+                button.className = 'btn' + (langCode === currentLanguage ? ' btn-primary' : '');
+                const emoji = langEmojis[langCode] || '';
+                button.innerHTML = `<span class="lang-emoji">${emoji}</span> ${langFullNames[langCode] || langCode.toUpperCase()}`;
+                button.onclick = () => setLanguage(langCode);
+                container.appendChild(button);
+            });
+        }
+
+        function setLanguage(lang) {
+            currentLanguage = lang;
+            localStorage.setItem('lang', lang);
+            updateTexts();
+            setupLanguageButtons();
+            renderHeaderControls();
+            if (panelData?.response?.isFound) renderContent();
+        }
+
+        function updateTexts() {
+            document.getElementById('qrHint').textContent = t('scanQrCodeDescription') || 'Scan with your phone';
+            document.getElementById('subscriptionQrHint').textContent = t('scanQrCodeDescription') || 'Scan with your phone';
+            document.getElementById('copySubBtnText').textContent = t('copyLink') || 'Copy';
+            document.getElementById('platformModalTitle').textContent = getHardcodedText('selectPlatform');
+            document.getElementById('settingsTitle').textContent = getHardcodedText('settings');
+            document.getElementById('themeLabel').textContent = getHardcodedText('theme');
+            document.getElementById('languageLabel').textContent = getHardcodedText('language');
+            
+            document.getElementById('fxLabel').textContent = tCustom('visualFX');
+            document.getElementById('fxNoneBtn').innerHTML = `🚫 <span class="fx-text">${tCustom('fxNone')}</span>`;
+            document.getElementById('fxSakuraBtn').innerHTML = `🌸 <span class="fx-text">${tCustom('fxSakura')}</span>`;
+            document.getElementById('fxAuroraBtn').innerHTML = `🌌 <span class="fx-text">${tCustom('fxAurora')}</span>`;
+            document.getElementById('fxBokehBtn').innerHTML = `✨ <span class="fx-text">${tCustom('fxBokeh')}</span>`;
+            
+            const lightBtn = document.getElementById('themeLightBtn');
+            const darkBtn = document.getElementById('themeDarkBtn');
+            const autoBtn = document.getElementById('themeAutoBtn');
+            if (lightBtn) lightBtn.querySelector('.theme-text').textContent = getHardcodedText('themeLight');
+            if (darkBtn) darkBtn.querySelector('.theme-text').textContent = getHardcodedText('themeDark');
+            if (autoBtn) autoBtn.querySelector('.theme-text').textContent = getHardcodedText('themeAuto');
+        }
+
+        function setTheme(theme) {
+            localStorage.setItem('theme', theme);
+            applyTheme(theme);
+        }
+
+        function applyTheme(theme) {
+            const html = document.documentElement;
+            const themeColorMeta = document.getElementById('themeColor');
+            let isDark;
+            if (theme === 'auto') {
+                isDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+            } else {
+                isDark = theme === 'dark';
+            }
+            html.classList.toggle('dark-theme', isDark);
+            themeColorMeta.setAttribute('content', isDark ? '#030712' : '#E5E7EB');
+        }
+
+        // --- ЛОГИКА ВИЗУАЛЬНЫХ ЭФФЕКТОВ ---
+        function initVisualFX() {
+            const savedFX = localStorage.getItem('visualFX') || 'none';
+            applyVisualFX(savedFX);
+        }
+
+        function setVisualFX(fxType) {
+            localStorage.setItem('visualFX', fxType);
+            applyVisualFX(fxType);
+            closeModal('settingsModal');
+        }
+
+        function applyVisualFX(fxType) {
+            const container = document.getElementById('fxContainer');
+            container.innerHTML = ''; // Очищаем старые эффекты
+            
+            // Обновляем активную кнопку в настройках
+            document.querySelectorAll('#fxButtons .btn').forEach(btn => btn.classList.remove('btn-primary'));
+            const activeBtn = document.getElementById('fx' + fxType.charAt(0).toUpperCase() + fxType.slice(1) + 'Btn');
+            if(activeBtn) activeBtn.classList.add('btn-primary');
+
+            if (fxType === 'sakura') {
+                for(let i = 0; i < 25; i++) {
+                    let petal = document.createElement('div');
+                    petal.className = 'fx-sakura';
+                    petal.style.left = Math.random() * 100 + 'vw';
+                    petal.style.width = (Math.random() * 10 + 8) + 'px';
+                    petal.style.height = (Math.random() * 10 + 8) + 'px';
+                    petal.style.animationDuration = (Math.random() * 5 + 5) + 's';
+                    petal.style.animationDelay = (Math.random() * 5) + 's';
+                    petal.style.setProperty('--drift', (Math.random() * 200 - 100) + 'px');
+                    container.appendChild(petal);
+                }
+            } else if (fxType === 'aurora') {
+                let aurora = document.createElement('div');
+                aurora.className = 'fx-aurora';
+                container.appendChild(aurora);
+            } else if (fxType === 'bokeh') {
+                for(let i = 0; i < 15; i++) {
+                    let bokeh = document.createElement('div');
+                    bokeh.className = 'fx-bokeh';
+                    bokeh.style.left = Math.random() * 100 + 'vw';
+                    let size = Math.random() * 80 + 40;
+                    bokeh.style.width = size + 'px';
+                    bokeh.style.height = size + 'px';
+                    bokeh.style.animationDuration = (Math.random() * 10 + 10) + 's';
+                    bokeh.style.animationDelay = (Math.random() * 10) + 's';
+                    container.appendChild(bokeh);
+                }
+            }
+        }
+
+        function detectOS() {
+            const ua = navigator.userAgent;
+            const platform = navigator.platform;
+            if (/iPad|iPhone|iPod/.test(ua) && !window.MSStream) return 'ios';
+            if (/Android/.test(ua)) return 'android';
+            if (/Mac/.test(platform)) return 'macos';
+            if (/Win/.test(platform)) return 'windows';
+            if (/Linux/.test(platform)) return 'linux';
+            return 'ios';
+        }
+
+        function renderContent() {
+            const mainContent = document.getElementById('mainContent');
+            if (!panelData?.response?.isFound) {
+                mainContent.innerHTML = `<div class="card"><div class="card-content" style="text-align: center; padding: 40px;">${t('unknown') || 'No data found'}</div></div>`;
+                return;
+            }
+
+            let html = '';
+
+            const infoBlockType = appConfig?.uiConfig?.subscriptionInfoBlockType || 'cards';
+            if (infoBlockType !== 'hidden') {
+                html += renderSubscriptionInfo(infoBlockType);
+            }
+
+            html += renderInstallationSection();
+
+            if (appConfig?.baseSettings?.showConnectionKeys !== false) {
+                html += renderLinksSection();
+            }
+
+            mainContent.innerHTML = html;
+            mainContent.classList.add('loaded');
+            attachEventListeners();
+        }
+
+        function renderSubscriptionInfo(blockType) {
+            const { user } = panelData.response;
+            const expiresDate = new Date(user.expiresAt);
+            const isNeverExpires = expiresDate.getFullYear() >= 2099;
+            const isActive = user.userStatus.toLowerCase() === 'active';
+
+            const trafficUsed = user.trafficUsed || '0 B';
+            const trafficLimit = user.trafficLimit === "0" ? '∞' : user.trafficLimit;
+            const bandwidth = `${trafficUsed} / ${trafficLimit}`;
+
+            let expiryText = t('indefinitely') || 'Indefinitely';
+            if (!isNeverExpires) expiryText = formatDate(expiresDate);
+
+            switch (blockType) {
+                case 'collapsed': return renderCollapsedInfo(user, isActive, expiryText, bandwidth, isNeverExpires);
+                case 'expanded': return renderExpandedInfo(user, isActive, expiryText, bandwidth, isNeverExpires);
+                case 'cards': default: return renderCardsInfo(user, isActive, expiryText, bandwidth, isNeverExpires);
+            }
+        }
+
+        function renderCardsInfo(user, isActive, expiryText, bandwidth, isNeverExpires) {
+            const trafficLimit = user.trafficLimit === "0" ? (t('indefinitely') || '∞') : user.trafficLimit;
+
+            let infoRows = `
+                <div class="info-row"><span class="info-label">${t('name') || 'Username'}</span><span class="info-value">${escapeHtml(user.username)}</span></div>
+                <div class="info-row"><span class="info-label">${t('status') || 'Status'}</span><span class="info-value"><span class="badge badge-${user.userStatus.toLowerCase()}">${isActive ? (t('active') || 'ACTIVE') : (t('inactive') || 'INACTIVE')}</span></span></div>
+            `;
+
+            if (isActive) {
+                infoRows += `
+                    <div class="info-row"><span class="info-label">${t('expires') || 'Expires'}</span><span class="info-value">${expiryText}</span></div>
+                    ${!isNeverExpires ? `<div class="info-row"><span class="info-label">${tCustom('daysLeft')}</span><span class="info-value">${user.daysLeft || 0}</span></div>` : ''}
+                    <div class="info-row"><span class="info-label">${t('bandwidth') || 'Traffic used'}</span><span class="info-value">${user.trafficUsed || '0 B'} / ${trafficLimit}</span></div>
+                `;
+            }
+
+            return `
+                <div class="card user-info" style="margin-bottom: 24px;">
+                    <div class="card-content">
+                        ${infoRows}
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderCollapsedInfo(user, isActive, expiryText, bandwidth, isNeverExpires) {
+            return `
+                <div class="card" style="margin-bottom: 24px;">
+                    <div class="user-info-collapsed" onclick="toggleCollapsedInfo(this)">
+                        <div class="status-icon ${isActive ? 'active' : 'inactive'}">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div class="user-summary">
+                            <div class="user-summary-name">${escapeHtml(user.username)}</div>
+                            <div class="user-summary-expire">${expiryText}</div>
+                        </div>
+                        <div class="expand-icon">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div class="user-info-collapsed-details">
+                        <div class="stats-grid">
+                            <div class="stat-card"><div class="stat-card-label">${t('name') || 'Username'}</div><div class="stat-card-value">${escapeHtml(user.username)}</div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('status') || 'Status'}</div><div class="stat-card-value"><span class="badge badge-${user.userStatus.toLowerCase()}">${isActive ? (t('active') || 'Active') : (t('inactive') || 'Inactive')}</span></div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('expires') || 'Expires'}</div><div class="stat-card-value">${expiryText}</div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('bandwidth') || 'Bandwidth'}</div><div class="stat-card-value">${bandwidth}</div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderExpandedInfo(user, isActive, expiryText, bandwidth, isNeverExpires) {
+            return `
+                <div class="card" style="margin-bottom: 24px;">
+                    <div style="display: flex; align-items: center; gap: 16px; padding: 24px; border-bottom: 1px solid var(--border);">
+                        <div class="status-icon ${isActive ? 'active' : 'inactive'}" style="width: 48px; height: 48px; border-radius: 14px; display: flex; align-items: center; justify-content: center; background: ${isActive ? 'rgba(34, 197, 94, 0.15)' : 'rgba(239, 68, 68, 0.15)'}; color: ${isActive ? 'var(--success)' : 'var(--error)'}; border: 1px solid ${isActive ? 'rgba(34, 197, 94, 0.3)' : 'rgba(239, 68, 68, 0.3)'}; flex-shrink: 0;">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                        </div>
+                        <div style="flex: 1;">
+                            <div style="font-weight: 600; font-size: 18px;">${escapeHtml(user.username)}</div>
+                            <div style="color: var(--text-secondary); font-size: 14px;">${expiryText}</div>
+                        </div>
+                    </div>
+                    <div style="padding: 24px;">
+                        <div class="stats-grid">
+                            <div class="stat-card"><div class="stat-card-label">${t('name') || 'Username'}</div><div class="stat-card-value">${escapeHtml(user.username)}</div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('status') || 'Status'}</div><div class="stat-card-value"><span class="badge badge-${user.userStatus.toLowerCase()}">${isActive ? (t('active') || 'Active') : (t('inactive') || 'Inactive')}</span></div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('expires') || 'Expires'}</div><div class="stat-card-value">${expiryText}</div></div>
+                            <div class="stat-card"><div class="stat-card-label">${t('bandwidth') || 'Bandwidth'}</div><div class="stat-card-value">${bandwidth}</div></div>
+                        </div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleCollapsedInfo(element) {
+            element.classList.toggle('expanded');
+            const details = element.nextElementSibling;
+            details.classList.toggle('open');
+        }
+
+        function renderInstallationSection() {
+            if (!appConfig?.platforms || validPlatforms.length === 0) return '';
+
+            const storedPlatform = localStorage.getItem('platform');
+            currentPlatform = validPlatforms.includes(storedPlatform) ? storedPlatform : detectOS();
+            if (!validPlatforms.includes(currentPlatform)) currentPlatform = validPlatforms[0];
+
+            const platformData = appConfig.platforms[currentPlatform];
+            const platformDisplayName = getLocalizedText(platformData?.displayName) || currentPlatform;
+            const platformIcon = getSvgIcon(platformData?.svgIconKey) || '';
+
+            return `
+                <div class="card apps-section">
+                    <div class="card-header">
+                        <span>${t('installationGuideHeader') || 'Installation'}</span>
+                        <button class="btn" id="platform-selector-btn" onclick="openPlatformModal()">
+                            ${platformIcon} <span>${platformDisplayName}</span>
+                        </button>
+                    </div>
+                    <div class="card-content">
+                        <div class="platform-tabs">
+                            ${validPlatforms.map(p => {
+                                const pData = appConfig.platforms[p];
+                                const pName = getLocalizedText(pData?.displayName) || p;
+                                const pIcon = getSvgIcon(pData?.svgIconKey) || '';
+                                return `<div class="platform-tab ${p === currentPlatform ? 'active' : ''}" data-platform="${p}">${pIcon} ${pName}</div>`;
+                            }).join('')}
+                        </div>
+                        <div id="appsContainer">${renderAppsForPlatform()}</div>
+                    </div>
+                </div>
+            `;
+        }
+
+        function renderAppsForPlatform() {
+            const platformData = appConfig.platforms[currentPlatform];
+            if (!platformData?.apps?.length) return '<div style="text-align: center; padding: 20px; color: var(--text-secondary);">No apps available</div>';
+
+            const apps = platformData.apps;
+            const guidesType = appConfig?.uiConfig?.installationGuidesBlockType || 'minimal';
+
+            if (guidesType === 'minimal') return renderAppsCardsView(apps);
+            if (guidesType === 'timeline' && apps.length > 1) return renderTimelineWithAppSelection(apps);
+            return renderAppsTabsView(apps, guidesType);
+        }
+
+        function renderAppsCardsView(apps) {
+            let html = '<div class="apps-container">';
+            html += `<div class="apps-grid">${apps.map(app => renderAppCard(app, true)).join('')}</div>`;
+            html += '</div>';
+            return html;
+        }
+
+        let timelineApps = [];
+        let timelineSelectedAppIndex = 0;
+        let timelineHasAppSelection = false;
+
+        function renderTimelineWithAppSelection(apps) {
+            timelineApps = apps;
+            timelineSelectedAppIndex = 0;
+            timelineCurrentStep = 0;
+            timelineHasAppSelection = true;
+            currentApp = apps[0];
+            return renderTimelineWithApps(apps, currentApp);
+        }
+
+        function renderTimelineWithApps(apps, selectedApp) {
+            const blocks = selectedApp.blocks || [];
+            const totalSteps = 1 + blocks.length;
+            const platformIcon = getSvgIcon(appConfig.platforms[currentPlatform]?.svgIconKey);
+
+            let html = '<div class="guides-timeline" data-has-app-selection="true"><div class="timeline-dots">';
+            html += `<div class="timeline-dot ${timelineCurrentStep === 0 ? 'active' : ''}" data-step="0" style="background: var(--primary-color);" onclick="goToTimelineStep(0)">${platformIcon}</div>`;
+            
+            blocks.forEach((block, index) => {
+                const stepIndex = index + 1;
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(blo
