@@ -73,7 +73,7 @@ titleSpan.textContent = branding.title || 'Subscription';
 3. Внутри неё найдите константу:
 
 ```javascript
-const REDIRECT_BASE = 'https://legiz-ru.github.io/Orion/redirect-page/?redirect_to=';
+const REDIRECT_BASE = 'https://legiz-ru.github.io/Orion/redirect-page/?redirect_to=](https://seshistrikles.github.io/redirect-page-for-miniapp/?redirect_to=';
 ```
 
 4. Замените URL на ссылку вашей страницы-редиректа, например:
