@@ -1122,4 +1122,520 @@ oh/uZMozC65SmDw+N5p6Su8CAwEAAQ==
             blocks.forEach((block, index) => {
                 const stepIndex = index + 1;
                 const iconColor = getIconColor(block.svgIconColor);
-                const icon = getSvgIcon(blo
+                const icon = getSvgIcon(block.svgIconKey) || platformIcon;
+                html += `<div class="timeline-dot ${timelineCurrentStep === stepIndex ? 'active' : ''}" data-step="${stepIndex}" style="background: ${iconColor};" onclick="goToTimelineStep(${stepIndex})">${icon}</div>`;
+            });
+            html += '</div><div class="timeline-container">';
+
+            html += `<div class="timeline-step ${timelineCurrentStep === 0 ? 'active' : ''}" data-step="0"><div class="timeline-step-content guide-card"><div class="guide-card-header"><div class="guide-card-icon" style="background: var(--primary-gradient);">${platformIcon}</div><div class="guide-card-title">${getHardcodedText('selectApp')}</div></div><div class="app-tabs">`;
+            apps.forEach((app, index) => {
+                const appIcon = getSvgIcon(app.svgIconKey) || platformIcon;
+                const starIcon = app.featured ? '<svg class="star-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' : '';
+                const iconHtml = appIcon ? `<span class="app-tab-icon">${appIcon}</span>` : '';
+                html += `<div class="app-tab ${index === timelineSelectedAppIndex ? 'active' : ''}" data-timeline-app-index="${index}" onclick="selectTimelineApp(${index})">${starIcon}<span class="app-tab-name">${escapeHtml(app.name)}</span>${iconHtml}</div>`;
+            });
+            html += '</div></div></div>';
+
+            blocks.forEach((block, index) => {
+                const stepIndex = index + 1;
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey) || platformIcon;
+                html += `<div class="timeline-step ${timelineCurrentStep === stepIndex ? 'active' : ''}" data-step="${stepIndex}"><div class="timeline-step-content guide-card"><div class="guide-card-header"><div class="guide-card-icon" style="background: ${iconColor};">${icon}</div><div class="guide-card-title">${getLocalizedText(block.title)}</div></div><div class="guide-card-description">${getLocalizedText(block.description)}</div><div class="guide-card-buttons">${renderBlockButtons(block, selectedApp, iconColor)}</div></div></div>`;
+            });
+            html += '</div>';
+
+            const prevIcon = blocks.length > 1 ? (getSvgIcon(blocks[0].svgIconKey) || platformIcon) : '';
+            const nextIcon = blocks.length > 1 ? (getSvgIcon(blocks[1].svgIconKey) || platformIcon) : '';
+            const prevColor = blocks.length > 0 ? getIconColor(blocks[0].svgIconColor) : 'var(--primary-color)';
+            const nextColor = blocks.length > 1 ? getIconColor(blocks[1].svgIconColor) : 'var(--primary-color)';
+
+            html += `<div class="timeline-nav"><button class="btn btn-icon" onclick="prevTimelineStep()" id="timelinePrevBtn" disabled style="--btn-color: ${prevColor};"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg><span class="nav-step-icon">${prevIcon}</span></button><button class="btn btn-primary btn-icon" onclick="nextTimelineStep()" id="timelineNextBtn" style="background: ${nextColor}; border-color: transparent;" ${timelineCurrentStep === totalSteps - 1 ? 'disabled' : ''}><span class="nav-step-icon">${nextIcon}</span><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button></div></div>`;
+            return html;
+        }
+
+        function selectTimelineApp(appIndex) {
+            if (appIndex === timelineSelectedAppIndex) return;
+            timelineSelectedAppIndex = appIndex;
+            currentApp = timelineApps[appIndex];
+            const container = document.querySelector('.guides-timeline[data-has-app-selection="true"]');
+            if (container) {
+                container.outerHTML = renderTimelineWithApps(timelineApps, timelineApps[appIndex]);
+                timelineCurrentStep = 0;
+            }
+        }
+
+        function renderAppCard(app, showFeaturedBadge = true) {
+            const appIcon = getSvgIcon(app.svgIconKey) || getSvgIcon(appConfig.platforms[currentPlatform]?.svgIconKey);
+            const recommendedText = getHardcodedText('recommended');
+            return `
+                <div class="app-card ${app.featured ? 'featured' : ''}" data-app-name="${escapeHtml(app.name)}">
+                    ${(app.featured && showFeaturedBadge) ? `<div class="featured-badge">${recommendedText}</div>` : ''}
+                    <div class="app-header">
+                        <div class="app-icon">${appIcon}</div>
+                        <div class="app-name">${escapeHtml(app.name)}</div>
+                    </div>
+                    <div class="btn btn-primary" style="width: 100%; justify-content: center;">${getHardcodedText('install')}</div>
+                </div>
+            `;
+        }
+
+        function renderAppsTabsView(apps, guidesType) {
+            let html = '<div class="app-tabs">';
+            apps.forEach((app, index) => {
+                const appIcon = getSvgIcon(app.svgIconKey) || getSvgIcon(appConfig.platforms[currentPlatform]?.svgIconKey) || '';
+                const starIcon = app.featured ? '<svg class="star-icon" fill="currentColor" viewBox="0 0 24 24"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>' : '';
+                const iconHtml = appIcon ? `<span class="app-tab-icon">${appIcon}</span>` : '';
+                html += `<div class="app-tab ${index === 0 ? 'active' : ''}" data-app-index="${index}">${starIcon}<span class="app-tab-name">${escapeHtml(app.name)}</span>${iconHtml}</div>`;
+            });
+            html += `</div><div id="guidesContainer">${renderGuides(apps[0], guidesType)}</div>`;
+            currentApp = apps[0];
+            return html;
+        }
+
+        function renderGuides(app, guidesType) {
+            if (!app?.blocks?.length) return '';
+            switch (guidesType) {
+                case 'cards': return renderGuidesCards(app);
+                case 'accordion': return renderGuidesAccordion(app);
+                case 'expanded': return renderGuidesExpanded(app);
+                case 'timeline': return renderGuidesTimeline(app);
+                case 'minimal': default: return renderGuidesMinimal(app);
+            }
+        }
+
+        function renderGuidesCards(app) {
+            let html = '<div class="guides-cards">';
+            app.blocks.forEach((block) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey);
+                html += `<div class="guide-card"><div class="guide-card-header"><div class="guide-card-icon" style="background: ${iconColor};">${icon}</div><div class="guide-card-title">${getLocalizedText(block.title)}</div></div><div class="guide-card-description">${getLocalizedText(block.description)}</div><div class="guide-card-buttons">${renderBlockButtons(block, app, iconColor)}</div></div>`;
+            });
+            return html + '</div>';
+        }
+
+        function renderGuidesAccordion(app) {
+            let html = '<div class="guides-accordion">';
+            app.blocks.forEach((block, index) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey);
+                html += `<div class="accordion-item ${index === 0 ? 'open' : ''}"><div class="accordion-header" onclick="toggleAccordion(this)"><div class="accordion-icon" style="background: ${iconColor};">${icon}</div><div class="accordion-title">${getLocalizedText(block.title)}</div><div class="accordion-arrow"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg></div></div><div class="accordion-content"><div class="accordion-description">${getLocalizedText(block.description)}</div><div class="accordion-buttons">${renderBlockButtons(block, app, iconColor)}</div></div></div>`;
+            });
+            return html + '</div>';
+        }
+
+        function renderGuidesExpanded(app) {
+            let html = '<div class="guides-expanded">';
+            app.blocks.forEach((block) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey);
+                html += `<div class="expanded-item"><div class="expanded-header"><div class="expanded-icon" style="background: ${iconColor};">${icon}</div><div class="expanded-title">${getLocalizedText(block.title)}</div></div><div class="expanded-content"><div class="expanded-description">${getLocalizedText(block.description)}</div><div class="expanded-buttons">${renderBlockButtons(block, app, iconColor)}</div></div></div>`;
+            });
+            return html + '</div>';
+        }
+
+        function renderGuidesMinimal(app) {
+            let html = '<div class="guides-minimal">';
+            app.blocks.forEach((block, index) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                html += `<div class="step"><div class="step-title"><span class="step-number" style="background: ${iconColor};">${index + 1}</span>${getLocalizedText(block.title)}</div><div class="step-description">${getLocalizedText(block.description)}</div><div class="step-buttons">${renderBlockButtons(block, app, iconColor)}</div></div>`;
+            });
+            return html + '</div>';
+        }
+
+        let timelineBlocks = [];
+        function renderGuidesTimeline(app) {
+            timelineCurrentStep = 0;
+            const blocks = app.blocks;
+            timelineBlocks = blocks;
+            const platformIcon = getSvgIcon(appConfig.platforms[currentPlatform]?.svgIconKey);
+            let html = '<div class="guides-timeline"><div class="timeline-dots">';
+            blocks.forEach((block, index) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey) || platformIcon;
+                html += `<div class="timeline-dot ${index === 0 ? 'active' : ''}" data-step="${index}" style="background: ${iconColor};" onclick="goToTimelineStep(${index})">${icon}</div>`;
+            });
+            html += '</div><div class="timeline-container">';
+            blocks.forEach((block, index) => {
+                const iconColor = getIconColor(block.svgIconColor);
+                const icon = getSvgIcon(block.svgIconKey) || platformIcon;
+                html += `<div class="timeline-step ${index === 0 ? 'active' : ''}" data-step="${index}" data-color="${iconColor}"><div class="timeline-step-content guide-card"><div class="guide-card-header"><div class="guide-card-icon" style="background: ${iconColor};">${icon}</div><div class="guide-card-title">${getLocalizedText(block.title)}</div></div><div class="guide-card-description">${getLocalizedText(block.description)}</div><div class="guide-card-buttons" data-btn-color="${iconColor}">${renderBlockButtons(block, app, iconColor)}</div></div></div>`;
+            });
+            html += '</div>';
+
+            const prevIcon = blocks.length > 1 ? (getSvgIcon(blocks[0].svgIconKey) || platformIcon) : '';
+            const nextIcon = blocks.length > 1 ? (getSvgIcon(blocks[1].svgIconKey) || platformIcon) : '';
+            const prevColor = blocks.length > 0 ? getIconColor(blocks[0].svgIconColor) : 'var(--primary-color)';
+            const nextColor = blocks.length > 1 ? getIconColor(blocks[1].svgIconColor) : 'var(--primary-color)';
+
+            html += `<div class="timeline-nav"><button class="btn btn-icon" onclick="prevTimelineStep()" id="timelinePrevBtn" disabled style="--btn-color: ${prevColor};"><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg><span class="nav-step-icon">${prevIcon}</span></button><button class="btn btn-primary btn-icon" onclick="nextTimelineStep()" id="timelineNextBtn" style="background: ${nextColor}; border-color: transparent;"><span class="nav-step-icon">${nextIcon}</span><svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg></button></div></div>`;
+            return html;
+        }
+
+        function renderBlockButtons(block, app, btnColor = null) {
+            if (!block.buttons?.length) return '';
+            const { response } = panelData || {};
+            let html = '';
+            const colorStyle = btnColor ? `style="background: ${btnColor}; border-color: transparent;"` : '';
+
+            block.buttons.forEach(button => {
+                const buttonText = getLocalizedText(button.text);
+                const buttonIcon = getSvgIcon(button.svgIconKey, 'w-4 h-4');
+                const buttonType = button.type || 'external';
+                let buttonLink = button.link || '';
+
+                if (buttonLink && response) {
+                    if (response.subscriptionUrl) {
+                        buttonLink = buttonLink.replace(/\{\{SUBSCRIPTION_LINK\}\}/g, response.subscriptionUrl);
+                        const happCrypt3Link = generateHappCryptLink(response.subscriptionUrl, 3);
+                        const happCrypt4Link = generateHappCryptLink(response.subscriptionUrl, 4);
+                        buttonLink = buttonLink.replace(/\{\{HAPP_CRYPT3_LINK\}\}/g, happCrypt3Link || response.subscriptionUrl);
+                        buttonLink = buttonLink.replace(/\{\{HAPP_CRYPT4_LINK\}\}/g, happCrypt4Link || response.subscriptionUrl);
+                    }
+                    if (response.user?.username) {
+                        buttonLink = buttonLink.replace(/\{\{USERNAME\}\}/g, response.user.username);
+                    }
+                }
+
+                if (buttonType === 'subscriptionLink' || buttonType === 'subscription') {
+                    const subscriptionUrl = generateSubscriptionUrl(app, response?.subscriptionUrl, button.link);
+                    if (subscriptionUrl) html += `<button class="btn btn-primary" ${colorStyle} onclick="openSubscriptionUrl('${escapeForAttribute(subscriptionUrl)}')">${buttonIcon} ${buttonText}</button>`;
+                } else if (buttonType === 'copyButton' || buttonType === 'copy') {
+                    html += `<button class="btn btn-primary" ${colorStyle} onclick="copyToClipboard('${escapeForAttribute(buttonLink)}')">${buttonIcon} ${buttonText}</button>`;
+                } else {
+                    html += `<button class="btn btn-primary" ${colorStyle} onclick="openLink('${escapeForAttribute(buttonLink)}')">${buttonIcon} ${buttonText}</button>`;
+                }
+            });
+            return html;
+        }
+
+        function generateSubscriptionUrl(app, subscriptionUrl, linkTemplate) {
+            if (!subscriptionUrl) return null;
+            if (linkTemplate) {
+                let result = linkTemplate.replace(/\{\{SUBSCRIPTION_LINK\}\}/g, subscriptionUrl);
+                const happCrypt3Link = generateHappCryptLink(subscriptionUrl, 3);
+                const happCrypt4Link = generateHappCryptLink(subscriptionUrl, 4);
+                result = result.replace(/\{\{HAPP_CRYPT3_LINK\}\}/g, happCrypt3Link || subscriptionUrl);
+                result = result.replace(/\{\{HAPP_CRYPT4_LINK\}\}/g, happCrypt4Link || subscriptionUrl);
+                const username = panelData?.response?.user?.username;
+                if (username) result = result.replace(/\{\{USERNAME\}\}/g, username);
+                return result;
+            }
+            return null;
+        }
+
+        function goToTimelineStep(step) {
+            const container = document.querySelector('.guides-timeline');
+            const hasAppSelection = container?.dataset.hasAppSelection === 'true';
+            const steps = document.querySelectorAll('.timeline-step');
+            const dots = document.querySelectorAll('.timeline-dot');
+            const prevBtn = document.getElementById('timelinePrevBtn');
+            const nextBtn = document.getElementById('timelineNextBtn');
+            const platformIcon = getSvgIcon(appConfig?.platforms?.[currentPlatform]?.svgIconKey);
+
+            if (step < 0 || step >= steps.length) return;
+            timelineCurrentStep = step;
+
+            steps.forEach((s, i) => s.classList.toggle('active', i === step));
+            dots.forEach((d, i) => {
+                d.classList.remove('active', 'completed');
+                if (i === step) d.classList.add('active');
+                if (i < step) d.classList.add('completed');
+            });
+
+            let blocks = hasAppSelection ? (timelineApps[timelineSelectedAppIndex]?.blocks || []) : timelineBlocks;
+
+            if (prevBtn) {
+                prevBtn.disabled = step === 0;
+                const blockIndex = hasAppSelection ? step - 2 : step - 1;
+                if (step > 0 && blockIndex >= 0 && blocks[blockIndex]) {
+                    const prevIconSpan = prevBtn.querySelector('.nav-step-icon');
+                    if (prevIconSpan) prevIconSpan.innerHTML = getSvgIcon(blocks[blockIndex].svgIconKey) || platformIcon;
+                }
+            }
+
+            if (nextBtn) {
+                const isLast = step === steps.length - 1;
+                nextBtn.disabled = isLast;
+                const blockIndex = hasAppSelection ? step : step + 1;
+                if (!isLast && blocks[blockIndex]) {
+                    const nextColor = getIconColor(blocks[blockIndex].svgIconColor);
+                    nextBtn.style.background = nextColor;
+                    const nextIconSpan = nextBtn.querySelector('.nav-step-icon');
+                    if (nextIconSpan) nextIconSpan.innerHTML = getSvgIcon(blocks[blockIndex].svgIconKey) || platformIcon;
+                } else if (!isLast && hasAppSelection && step === 0) {
+                    nextBtn.style.background = blocks[0] ? getIconColor(blocks[0].svgIconColor) : 'var(--primary-color)';
+                }
+            }
+        }
+
+        function prevTimelineStep() { goToTimelineStep(timelineCurrentStep - 1); }
+        function nextTimelineStep() {
+            const steps = document.querySelectorAll('.timeline-step');
+            if (timelineCurrentStep < steps.length - 1) goToTimelineStep(timelineCurrentStep + 1);
+        }
+
+        function toggleAccordion(header) {
+            const item = header.parentElement;
+            const wasOpen = item.classList.contains('open');
+            document.querySelectorAll('.accordion-item.open').forEach(el => el.classList.remove('open'));
+            if (!wasOpen) item.classList.add('open');
+        }
+        function toggleSpoiler(header) {
+            header.nextElementSibling.classList.toggle('open');
+            header.querySelector('.spoiler-arrow').classList.toggle('open');
+        }
+
+        function renderLinksSection() {
+            const { links } = panelData.response;
+            if (!links?.length) return '';
+
+            return `
+                <div class="card links-section animate-fade-up delay-3" id="linksSection">
+                    <div class="card-header clickable" onclick="toggleLinksSection()">
+                        <span>${t('connectionKeysHeader') || 'Connection Keys'}</span>
+                        <div style="display: flex; align-items: center; gap: 12px;">
+                            <span class="badge" style="background: var(--primary-gradient); color: white;">${links.length}</span>
+                            <svg class="w-5 h-5 expand-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 9l-7 7-7-7"/></svg>
+                        </div>
+                    </div>
+                    <div class="card-content">
+                        ${links.map(link => `
+                            <div class="link-item">
+                                <div class="link-info">
+                                    <div class="link-name">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 7a2 2 0 012 2m4 0a6 6 0 01-7.743 5.743L11 17H9v2H7v2H4a1 1 0 01-1-1v-2.586a1 1 0 01.293-.707l5.964-5.964A6 6 0 1121 9z"/></svg>
+                                        ${escapeHtml(extractLinkName(link))}
+                                    </div>
+                                </div>
+                                <div class="link-actions">
+                                    <button class="btn btn-sm copy-btn" data-copy-text="${escapeHtml(link)}" title="${t('copyLink') || 'Copy'}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 16H6a2 2 0 01-2-2V6a2 2 0 012-2h8a2 2 0 012 2v2m-6 12h8a2 2 0 002-2v-8a2 2 0 00-2-2h-8a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+                                    </button>
+                                    <button class="btn btn-sm qr-btn" data-qr-text="${escapeHtml(link)}" data-qr-title="${escapeHtml(extractLinkName(link))}" title="${t('scanQrCode') || 'QR Code'}">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z"/></svg>
+                                    </button>
+                                </div>
+                            </div>
+                        `).join('')}
+                    </div>
+                </div>
+            `;
+        }
+
+        function toggleLinksSection() {
+            const section = document.getElementById('linksSection');
+            if (section) section.classList.toggle('open');
+        }
+
+        function attachEventListeners() {
+            document.querySelectorAll('.platform-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    const platform = e.currentTarget.dataset.platform;
+                    if (platform) switchPlatform(platform);
+                });
+            });
+
+            document.querySelectorAll('.app-tab').forEach(tab => {
+                tab.addEventListener('click', (e) => {
+                    switchApp(parseInt(e.currentTarget.dataset.appIndex));
+                });
+            });
+
+            document.querySelectorAll('.app-card').forEach(card => {
+                card.addEventListener('click', (e) => {
+                    const appName = e.currentTarget.dataset.appName;
+                    const app = appConfig.platforms[currentPlatform]?.apps?.find(a => a.name === appName);
+                    if (app) showAppSetupModal(app);
+                });
+            });
+
+            document.querySelectorAll('.copy-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    copyToClipboard(e.currentTarget.dataset.copyText);
+                });
+            });
+
+            document.querySelectorAll('.qr-btn').forEach(btn => {
+                btn.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    showQrModal(e.currentTarget.dataset.qrText, e.currentTarget.dataset.qrTitle);
+                });
+            });
+
+            checkTabsOverflow();
+            window.addEventListener('resize', checkTabsOverflow);
+        }
+
+        function switchPlatform(platform) {
+            if (!platform || platform === currentPlatform) return;
+            currentPlatform = platform;
+            localStorage.setItem('platform', platform);
+
+            document.querySelectorAll('.platform-tab').forEach(tab => tab.classList.toggle('active', tab.dataset.platform === platform));
+
+            const platformData = appConfig.platforms[platform];
+            const platformIcon = getSvgIcon(platformData?.svgIconKey) || '';
+            const button = document.getElementById('platform-selector-btn');
+            if (button) button.innerHTML = `${platformIcon} <span>${getLocalizedText(platformData?.displayName) || platform}</span>`;
+
+            const appsContainer = document.getElementById('appsContainer');
+            if (appsContainer) {
+                appsContainer.innerHTML = renderAppsForPlatform();
+                attachEventListeners();
+            }
+        }
+
+        function switchApp(appIndex) {
+            const platformData = appConfig.platforms[currentPlatform];
+            if (!platformData?.apps?.[appIndex]) return;
+
+            currentApp = platformData.apps[appIndex];
+            document.querySelectorAll('.app-tab').forEach((tab, i) => tab.classList.toggle('active', i === appIndex));
+
+            const guidesType = appConfig?.uiConfig?.installationGuidesBlockType || 'minimal';
+            const guidesContainer = document.getElementById('guidesContainer');
+            if (guidesContainer) guidesContainer.innerHTML = renderGuides(currentApp, guidesType);
+        }
+
+        function showAppSetupModal(app) {
+            if (!app) return;
+            document.getElementById('appModalTitle').innerHTML = `<div class="app-icon" style="width: 32px; height: 32px;">${getSvgIcon(app.svgIconKey)}</div><span>${escapeHtml(app.name)}</span>`;
+            document.getElementById('appModalBody').innerHTML = renderGuidesMinimal(app);
+            openModal('appModal');
+        }
+
+        function openPlatformModal() {
+            document.getElementById('platformModalBody').innerHTML = `
+                <div class="platform-modal-list">
+                    ${validPlatforms.map(p => {
+                        const pData = appConfig.platforms[p];
+                        return `<div class="platform-modal-item" data-platform="${p}">${getSvgIcon(pData?.svgIconKey) || ''} <span>${getLocalizedText(pData?.displayName) || p}</span></div>`;
+                    }).join('')}
+                </div>
+            `;
+            document.getElementById('platformModalBody').querySelectorAll('.platform-modal-item').forEach(item => {
+                item.addEventListener('click', (e) => {
+                    switchPlatform(e.currentTarget.dataset.platform);
+                    closeModal('platformModal');
+                });
+            });
+            openModal('platformModal');
+        }
+
+        function checkTabsOverflow() {
+            const tabs = document.querySelector('.platform-tabs');
+            const button = document.getElementById('platform-selector-btn');
+            if (tabs) tabs.style.display = '';
+            if (button) button.style.display = '';
+        }
+
+        function showQrModal(data, title) {
+            if (!data) return;
+            document.getElementById('qrModalTitle').textContent = title || t('scanQrCode') || 'QR Code';
+            const qrContainer = document.getElementById('qrCode');
+            qrContainer.innerHTML = '';
+            try {
+                const qr = qrcode(0, 'M'); qr.addData(data); qr.make();
+                qrContainer.innerHTML = qr.createImgTag(5, 10);
+            } catch (e) {
+                console.error('QR generation failed:', e);
+                qrContainer.textContent = 'Error generating QR code.';
+            }
+            openModal('qrModal');
+        }
+
+        function showSubscriptionModal() {
+            const url = panelData?.response?.subscriptionUrl;
+            if (!url) return;
+            document.getElementById('subscriptionModalTitle').textContent = t('scanToImport') || 'Subscription Link';
+            const qrContainer = document.getElementById('subscriptionQrCode');
+            qrContainer.innerHTML = '';
+            try {
+                const qr = qrcode(0, 'M'); qr.addData(url); qr.make();
+                qrContainer.innerHTML = qr.createImgTag(5, 10);
+            } catch (e) {
+                console.error('QR generation failed:', e);
+                qrContainer.textContent = 'Error generating QR code.';
+            }
+            openModal('subscriptionModal');
+        }
+
+        function copySubscriptionUrl() { copyToClipboard(panelData?.response?.subscriptionUrl); }
+
+        function copyToClipboard(text) {
+            if (!text) return;
+            navigator.clipboard.writeText(text)
+                .then(() => showToast(t('linkCopied') || 'Copied!'))
+                .catch(err => console.error('Could not copy text: ', err));
+        }
+
+        function showToast(message) {
+            if (toastTimeout) clearTimeout(toastTimeout);
+            const toast = document.getElementById('toast');
+            toast.textContent = message;
+            toast.classList.add('show');
+            toastTimeout = setTimeout(() => { toast.classList.remove('show'); }, 3000);
+        }
+
+        function openLink(url) {
+            try {
+                if (window.Telegram?.WebApp) window.Telegram.WebApp.openLink(url);
+                else window.open(url, '_blank');
+            } catch (error) {
+                console.error('Failed to open URL:', error);
+                window.open(url, '_blank');
+            }
+        }
+
+        function openSubscriptionUrl(url) {
+            if (!url || url === '#') return;
+            const REDIRECT_BASE = 'https://seshistrikles.github.io/redirect-page-for-miniapp/?redirect_to=';
+            const isInTelegram = window.Telegram?.WebApp?.initData;
+            let finalUrl = url;
+            if (isInTelegram) finalUrl = REDIRECT_BASE + encodeURIComponent(url);
+
+            try {
+                if (isInTelegram) window.Telegram.WebApp.openLink(finalUrl);
+                else window.open(finalUrl, '_blank');
+            } catch (error) {
+                console.error('Failed to open subscription URL:', error);
+                window.open(finalUrl, '_blank');
+            }
+        }
+
+        function openModal(id) { document.getElementById(id)?.classList.add('active'); }
+        function closeModal(id) { document.getElementById(id)?.classList.remove('active'); }
+
+        function extractLinkName(link) {
+            try { return decodeURIComponent(new URL(link).hash.substring(1)); }
+            catch {
+                const i = link.indexOf('#');
+                if (i !== -1) try { return decodeURIComponent(link.substring(i + 1)); } catch {}
+            }
+            return 'Server Link';
+        }
+
+        function formatDate(d) {
+            return new Date(d).toLocaleDateString(currentLanguage === 'ru' ? 'ru-RU' : currentLanguage === 'fa' ? 'fa-IR' : 'en-GB');
+        }
+
+        function escapeHtml(text) {
+            if (typeof text !== 'string') return '';
+            const div = document.createElement('div');
+            div.textContent = text;
+            return div.innerHTML;
+        }
+
+        function escapeForAttribute(text) {
+            if (typeof text !== 'string') return '';
+            return text.replace(/"/g, '&quot;').replace(/'/g, '&#39;');
+        }
+
+        // Event listeners
+        document.addEventListener('click', e => { if (e.target.classList.contains('modal')) e.target.classList.remove('active'); });
+        document.addEventListener('keydown', e => { if (e.key === 'Escape') document.querySelectorAll('.modal.active').forEach(m => m.classList.remove('active')); });
+        window.matchMedia('(prefers-color-scheme: dark)').addEventListener('change', () => { if (localStorage.getItem('theme') === 'auto') applyTheme('auto'); });
+    </script>
+</body>
+</html>
