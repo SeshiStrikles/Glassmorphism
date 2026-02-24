@@ -11,10 +11,7 @@
     })();
     </script>
     <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-    <link rel="apple-touch-icon" sizes="180x180" href="/assets/apple-touch-icon-180x180.png" />
-    <link rel="icon" type="image/png" sizes="32x32" href="/assets/favicon-32x32.png" />
-    <link rel="icon" type="image/png" sizes="16x16" href="/assets/favicon-16x16.png" />
-    <link rel="icon" type="image/x-icon" href="/assets/favicon.ico" />
+    <link id="dynamic-favicon" rel="icon" href="data:," />
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="theme-color" content="#E5E7EB" id="themeColor">
     <meta name="description" content="<%= metaDescription %>" id="metaDesc">
@@ -735,6 +732,16 @@ oh/uZMozC65SmDw+N5p6Su8CAwEAAQ==
         function updateBranding() {
             if (!appConfig?.brandingSettings) return;
             const branding = appConfig.brandingSettings;
+            
+            // --- НОВАЯ ЛОГИКА: Подставляем логотип на вкладку браузера (favicon) ---
+            if (branding.logoUrl) {
+                const favicon = document.getElementById('dynamic-favicon');
+                if (favicon) {
+                    favicon.href = branding.logoUrl;
+                }
+            }
+            // -------------------------------------------------------------------------
+
             const logo = document.getElementById('brandLogo');
             if (logo) {
                 logo.innerHTML = '';
@@ -743,10 +750,13 @@ oh/uZMozC65SmDw+N5p6Su8CAwEAAQ==
                     logoImg.src = branding.logoUrl;
                     logoImg.alt = branding.title || 'Logo';
                     logoImg.className = 'brand-logo';
+                    // Убираем квадратные тени для прозрачного SVG-блика
+                    logoImg.style.boxShadow = 'none'; 
+                    logoImg.style.borderRadius = '0';
                     logo.appendChild(logoImg);
                 }
                 const titleSpan = document.createElement('span');
-                titleSpan.textContent = branding.title || 'Subscription';
+                titleSpan.textContent = branding.title || 'ReverCent';
                 titleSpan.style.background = 'var(--primary-gradient)';
                 titleSpan.style.webkitBackgroundClip = 'text';
                 titleSpan.style.webkitTextFillColor = 'transparent';
