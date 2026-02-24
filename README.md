@@ -30,10 +30,6 @@ curl -O https://raw.githubusercontent.com/SeshiStrikles/Glassmorphism/main/index
 ```bash
 wget https://raw.githubusercontent.com/SeshiStrikles/Glassmorphism/main/index.html
 ```
-
-> **Примечание:** Если ваша главная ветка в репозитории называется `master` вместо `main`, замените `main` на `master` в ссылке.
-> После скачивания назначьте этот файл в качестве шаблона подписки в настройках вашей панели.[^3]
-
 ***
 
 ## 🎨 Как изменить наименование бренда
